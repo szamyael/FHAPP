@@ -445,10 +445,6 @@ begin
 end;
 $$;
 
--- Admin registration rejection
---
--- Rejecting a pending/declined registration deletes the auth user and account
--- record so the same email address can sign up again.
 create or replace function public.admin_reject_account(p_account_id text)
 returns void
 language plpgsql
