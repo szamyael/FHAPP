@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FoodHub (Chrome) - Default",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "args": [
+        "--dart-define-from-file=supabase_defines.json"
+      ]
+    },
+    {
+      "name": "FoodHub (Chrome) - Supabase",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "args": [
+        "--dart-define-from-file=supabase_defines.json"
+      ]
+    },
+    {
+      "name": "FoodHub (Chrome) - Supabase (.env)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "args": [
+        "--dart-define-from-file=.env"
+      ]
+    },
+    {
+      "name": "FoodHub (Chrome) - Demo (no Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome"
+    }
+  ]
+}
