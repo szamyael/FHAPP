@@ -1,16 +1,6 @@
-enum AccountRole {
-  user,
-  seller,
-  rider,
-  admin,
-}
+enum AccountRole { user, seller, rider, admin }
 
-enum AccountStatus {
-  pending,
-  approved,
-  declined,
-  suspended,
-}
+enum AccountStatus { pending, approved, declined, suspended }
 
 class Account {
   const Account({
@@ -24,6 +14,7 @@ class Account {
     required this.role,
     required this.status,
     required this.credentialsSubmitted,
+    this.profile = const <String, dynamic>{},
     this.storeCategory,
     this.storeIsOpen,
     this.riderIsOnline,
@@ -40,6 +31,12 @@ class Account {
   final AccountRole role;
   final AccountStatus status;
   final bool credentialsSubmitted;
+
+  /// Arbitrary JSON profile data stored in `public.accounts.profile`.
+  ///
+  /// This contains submitted credential fields during registration
+  /// (e.g., seller uploads, rider documents).
+  final Map<String, dynamic> profile;
 
   /// Seller-only metadata sourced from the `accounts.profile` JSON.
   ///
@@ -73,6 +70,7 @@ class Account {
     String? passwordHash,
     AccountStatus? status,
     bool? credentialsSubmitted,
+    Map<String, dynamic>? profile,
     String? storeCategory,
     bool? storeIsOpen,
     bool? riderIsOnline,
@@ -89,6 +87,7 @@ class Account {
       role: role,
       status: status ?? this.status,
       credentialsSubmitted: credentialsSubmitted ?? this.credentialsSubmitted,
+      profile: profile ?? this.profile,
       storeCategory: storeCategory ?? this.storeCategory,
       storeIsOpen: storeIsOpen ?? this.storeIsOpen,
       riderIsOnline: riderIsOnline ?? this.riderIsOnline,

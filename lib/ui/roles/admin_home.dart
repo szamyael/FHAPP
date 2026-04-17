@@ -109,7 +109,8 @@ class _AdminInvitationCodeCard extends StatefulWidget {
   const _AdminInvitationCodeCard();
 
   @override
-  State<_AdminInvitationCodeCard> createState() => _AdminInvitationCodeCardState();
+  State<_AdminInvitationCodeCard> createState() =>
+      _AdminInvitationCodeCardState();
 }
 
 class _AdminInvitationCodeCardState extends State<_AdminInvitationCodeCard> {
@@ -119,7 +120,10 @@ class _AdminInvitationCodeCardState extends State<_AdminInvitationCodeCard> {
   Future<void> _generate() async {
     final store = AppStoreScope.of(context);
     setState(() => _loading = true);
-    final code = await store.adminGenerateInvitationCode(role: 'admin', length: 8);
+    final code = await store.adminGenerateInvitationCode(
+      role: 'admin',
+      length: 8,
+    );
     if (!mounted) return;
     setState(() {
       _loading = false;
@@ -177,6 +181,94 @@ class _AdminInvitationCodeCardState extends State<_AdminInvitationCodeCard> {
 class _AdminApprovals extends StatelessWidget {
   const _AdminApprovals();
 
+  static Map? _asMap(dynamic value) => value is Map ? value : null;
+
+  static String? _asNonEmptyString(dynamic value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  static List<({String label, String value})> _credentialItems(Account a) {
+    final items = <({String label, String value})>[];
+
+    final profile = a.profile;
+    final name = _asMap(profile['name']);
+    final ownerName = _asNonEmptyString(name?['full']);
+    if (ownerName != null && ownerName != a.displayName) {
+      items.add((label: 'Owner name', value: ownerName));
+    }
+
+    switch (a.role) {
+      case AccountRole.seller:
+        final store = _asMap(profile['store']);
+        final storeName = _asNonEmptyString(store?['store_name']);
+        final category = _asNonEmptyString(store?['store_category']);
+        final address = _asNonEmptyString(store?['address']);
+        final hours = _asNonEmptyString(store?['operating_hours']);
+        final uploads = _asMap(store?['uploads']);
+        final storeLogo = _asNonEmptyString(uploads?['store_logo']);
+        final permit = _asNonEmptyString(uploads?['business_permit']);
+        final ownerId = _asNonEmptyString(uploads?['owner_id']);
+
+        if (storeName != null)
+          items.add((label: 'Store name', value: storeName));
+        if (category != null) items.add((label: 'Category', value: category));
+        if (address != null) items.add((label: 'Address', value: address));
+        if (hours != null) items.add((label: 'Operating hours', value: hours));
+        if (storeLogo != null) {
+          items.add((label: 'Upload: store logo', value: storeLogo));
+        }
+        if (permit != null) {
+          items.add((label: 'Upload: business permit', value: permit));
+        }
+        if (ownerId != null)
+          items.add((label: 'Upload: owner ID', value: ownerId));
+        break;
+      case AccountRole.rider:
+        final rider = _asMap(profile['rider']);
+        final vehicleType = _asNonEmptyString(rider?['vehicle_type']);
+        final plate = _asNonEmptyString(rider?['plate_number']);
+        final uploads = _asMap(rider?['uploads']);
+        final license = _asNonEmptyString(uploads?['drivers_license']);
+        final registration = _asNonEmptyString(
+          uploads?['vehicle_registration'],
+        );
+
+        if (vehicleType != null) {
+          items.add((label: 'Vehicle type', value: vehicleType));
+        }
+        if (plate != null) items.add((label: 'Plate number', value: plate));
+        if (license != null) {
+          items.add((label: 'Upload: driver\'s license', value: license));
+        }
+        if (registration != null) {
+          items.add((
+            label: 'Upload: vehicle registration',
+            value: registration,
+          ));
+        }
+        break;
+      case AccountRole.user:
+        final user = _asMap(profile['user']);
+        final address = _asNonEmptyString(user?['delivery_address']);
+        final birthday = _asNonEmptyString(user?['birthday']);
+        final photo = _asNonEmptyString(user?['profile_photo']);
+
+        if (address != null) {
+          items.add((label: 'Delivery address', value: address));
+        }
+        if (birthday != null) items.add((label: 'Birthday', value: birthday));
+        if (photo != null)
+          items.add((label: 'Upload: profile photo', value: photo));
+        break;
+      case AccountRole.admin:
+        break;
+    }
+
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = AppStoreScope.of(context);
@@ -217,6 +309,17 @@ class _AdminApprovals extends StatelessWidget {
                     Text(
                       'Credentials submitted: ${a.credentialsSubmitted ? 'Yes' : 'No'}',
                     ),
+                    if (a.credentialsSubmitted) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Submitted credentials',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      ..._credentialItems(
+                        a,
+                      ).map((item) => Text('${item.label}: ${item.value}')),
+                    ],
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 12,
@@ -236,15 +339,21 @@ class _AdminApprovals extends StatelessWidget {
                         ),
                         OutlinedButton(
                           onPressed: () async {
-                            await store.declineAccount(a.id);
+                            final err = await store.declineAccount(a.id);
                             if (!context.mounted) return;
+                            if (err != null) {
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text(err)));
+                              return;
+                            }
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Declined ${a.displayName}'),
+                                content: Text('Rejected ${a.displayName}'),
                               ),
                             );
                           },
-                          child: const Text('Decline'),
+                          child: const Text('Reject'),
                         ),
                       ],
                     ),

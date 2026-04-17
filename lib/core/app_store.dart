@@ -281,9 +281,6 @@ class AppStore extends ChangeNotifier {
     final e = email.trim();
     if (!isUsernameAvailable(u)) return 'Username is already taken.';
     if (e.isEmpty || !e.contains('@')) return 'Please enter a valid email.';
-    if (accountByUsernameOrEmail(e) != null) {
-      return 'Email is already registered. Try signing in instead.';
-    }
 
     final client = _client;
     if (client == null) {
@@ -338,12 +335,6 @@ class AppStore extends ChangeNotifier {
     }
     if (e.isEmpty || !e.contains('@')) {
       return (error: 'Please enter a valid email.', requiresEmailOtp: false);
-    }
-    if (accountByUsernameOrEmail(e) != null) {
-      return (
-        error: 'Email is already registered. Try signing in instead.',
-        requiresEmailOtp: false,
-      );
     }
 
     final client = _client;
@@ -722,18 +713,33 @@ class AppStore extends ChangeNotifier {
     }
   }
 
-  Future<void> declineAccount(String accountId) async {
+  Future<String?> declineAccount(String accountId) async {
     final idx = _accounts.indexWhere((a) => a.id == accountId);
-    if (idx < 0) return;
-    final client = _client;
-    if (client == null) return;
+    if (idx < 0) return 'Account not found.';
 
-    await client
-        .from('accounts')
-        .update({'status': 'declined'})
-        .eq('id', accountId);
-    _accounts[idx] = _accounts[idx].copyWith(status: AccountStatus.declined);
-    notifyListeners();
+    final client = _client;
+    if (client == null) {
+      _accounts.removeAt(idx);
+      notifyListeners();
+      return null;
+    }
+
+    try {
+      await client.rpc(
+        'admin_reject_account',
+        params: {'p_account_id': accountId},
+      );
+
+      // Remove immediately; realtime will also emit a DELETE.
+      _accounts.removeWhere((a) => a.id == accountId);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      final friendly = _friendlySupabaseError(e);
+      _loadError = friendly;
+      notifyListeners();
+      return friendly;
+    }
   }
 
   Future<void> adminSetSellerCommissionRate({
@@ -1707,8 +1713,8 @@ class AppStore extends ChangeNotifier {
     double? commissionRateOverride;
     final rawProfile = row['profile'];
     Map<String, dynamic>? profile;
-    if (rawProfile is Map<String, dynamic>) {
-      profile = rawProfile;
+    if (rawProfile is Map) {
+      profile = rawProfile.map((k, v) => MapEntry(k.toString(), v));
     } else if (rawProfile is String && rawProfile.trim().isNotEmpty) {
       try {
         final decoded = jsonDecode(rawProfile);
@@ -1783,6 +1789,7 @@ class AppStore extends ChangeNotifier {
         AccountStatus.pending,
       ),
       credentialsSubmitted: row['credentials_submitted'] == true,
+      profile: profile ?? const <String, dynamic>{},
       storeCategory: storeCategory,
       storeIsOpen: storeIsOpen,
       riderIsOnline: riderIsOnline,

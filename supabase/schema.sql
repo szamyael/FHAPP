@@ -445,9 +445,44 @@ begin
 end;
 $$;
 
+-- Admin registration rejection
+--
+-- Rejecting a pending/declined registration deletes the auth user and account
+-- record so the same email address can sign up again.
+create or replace function public.admin_reject_account(p_account_id text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  if coalesce(nullif(p_account_id, ''), '') = '' then
+    raise exception 'account id required';
+  end if;
+
+  if not exists (
+    select 1
+    from public.accounts a
+    where a.id = p_account_id
+      and a.role <> 'admin'
+      and a.status in ('pending', 'declined')
+  ) then
+    raise exception 'account is not rejectable';
+  end if;
+
+  delete from public.accounts where id = p_account_id;
+  delete from auth.users where id::text = p_account_id;
+end;
+$$;
+
 grant execute on function public.set_store_open(boolean) to authenticated;
 grant execute on function public.set_rider_online(boolean) to authenticated;
 grant execute on function public.admin_set_seller_commission_rate(text, numeric) to authenticated;
+grant execute on function public.admin_reject_account(text) to authenticated;
 
 -- Registration finalization + admin invitation codes
 
